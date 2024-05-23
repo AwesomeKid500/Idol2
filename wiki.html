@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia Band Search</title>
+    <link rel="stylesheet" href="wiki.css">
+</head>
+<body>
+    <header>
+        <ul class="nav_links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="index.html">Idols</a></li>
+            <li><a href="actors.html">Actors</a></li>
+            <li><a href="to_do_list/to_do_list.html">List</a></li>
+            <li>
+                <a href="">Others</a>
+                <ul class="dropdown">
+                    <li><a href="wiki.html">wiki</a></li>
+                    <li><a href="#">2</a></li>
+                    <li><a href="#">3</a></li>
+                    <li><a href="#">4</a></li>
+                </ul>
+            </li>
+
+        </ul>
+    </header>
+    <div class="container">
+        <h1>Wikipedia Band Search</h1>
+        <input type="text" id="search-box" placeholder="Search for a band">
+        <button id="search-button">Search</button>
+        <div id="wiki-content"></div>
+    </div>
+
+    <script>
+        document.getElementById('search-button').addEventListener('click', fetchWikiData);
+
+async function fetchWikiData() {
+    const query = document.getElementById('search-box').value.trim().toLowerCase();
+    if (!query) return;
+
+    const response = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*`);
+    const data = await response.json();
+
+    if (data.query.search.length === 0) {
+        document.getElementById('wiki-content').innerHTML = '<p>No results found.</p>';
+        return;
+    }
+
+    const pageTitle = data.query.search[0].title;
+    const pageResponse = await fetch(`https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(pageTitle)}&prop=text&format=json&origin=*`);
+    const pageData = await pageResponse.json();
+
+    if (pageData.error) {
+        document.getElementById('wiki-content').innerHTML = '<p>No results found.</p>';
+    } else {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(pageData.parse.text['*'], 'text/html');
+        const bandMembers = extractBandMembers(doc);
+        displayBandMembers(pageData.parse.title, bandMembers);
+    }
+}
+
+function extractBandMembers(doc) {
+    const infobox = doc.querySelector('.infobox');
+    let bandMembers = [];
+
+    if (infobox) {
+        const rows = infobox.querySelectorAll('tr');
+        rows.forEach(row => {
+            const header = row.querySelector('th');
+            if (header && header.textContent.trim().toLowerCase() === 'members') {
+                const membersCell = row.querySelector('td');
+                if (membersCell) {
+                    bandMembers = membersCell.textContent.split('\n').map(name => name.trim()).filter(name => name);
+                }
+            }
+        });
+    }
+    return bandMembers;
+}
+
+function displayBandMembers(title, bandMembers) {
+    let content = `<h2>${title}</h2>`;
+    if (bandMembers.length > 0) {
+        content += '<ul>';
+        bandMembers.forEach(member => {
+            content += `<li>${member}</li>`;
+        });
+        content += '</ul>';
+    } else {
+        content += '<p>No band members found.</p>';
+    }
+    document.getElementById('wiki-content').innerHTML = content;
+}
+
+
+    </script>
+</body>
+</html>
